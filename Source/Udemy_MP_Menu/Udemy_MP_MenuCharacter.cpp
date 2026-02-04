@@ -13,11 +13,11 @@
 #include "Udemy_MP_Menu.h"
 #include "OnlineSubsystem.h"
 #include "OnlineSessionSettings.h"
+#include "Online/OnlineSessionNames.h"
 
 
-AUdemy_MP_MenuCharacter::AUdemy_MP_MenuCharacter() : 
-	CreateSessionCompleteDelegate(FOnCreateSessionCompleteDelegate::CreateUObject(this, &ThisClass::OnCreateSessionComplete))	
-	// Create delegate by using the CreateUObject function ^. This function constructs a new delegate and takes the address of our callback function, binding it.
+AUdemy_MP_MenuCharacter::AUdemy_MP_MenuCharacter()
+	
 {
 	// Set size for collision capsule
 	GetCapsuleComponent()->InitCapsuleSize(42.f, 96.0f);
@@ -51,9 +51,7 @@ AUdemy_MP_MenuCharacter::AUdemy_MP_MenuCharacter() :
 	FollowCamera->SetupAttachment(CameraBoom, USpringArmComponent::SocketName);
 	FollowCamera->bUsePawnControlRotation = false;
 
-	// Note: The skeletal mesh and anim blueprint references on the Mesh component (inherited from Character) 
-	// are set in the derived blueprint asset named ThirdPersonCharacter (to avoid direct content references in C++)
-
+	
 	IOnlineSubsystem* OnlineSubsystem = IOnlineSubsystem::Get();
 	if (OnlineSubsystem)
 	{
@@ -64,22 +62,21 @@ AUdemy_MP_MenuCharacter::AUdemy_MP_MenuCharacter() :
 			GEngine->AddOnScreenDebugMessage(-1, 15.f, FColor::Blue, FString::Printf(TEXT("Found Subsystem %s"), *OnlineSubsystem->GetSubsystemName().ToString()));
 		}
 	}
+
+	// Create delegates by using the CreateUObject function. These functions constructs a new delegate and takes the address of our callback function, binding it.
+	CreateSessionCompleteDelegate = FOnCreateSessionCompleteDelegate::CreateUObject(this, &ThisClass::OnCreateSessionComplete);
+	FindSessionsCompleteDelegate = FOnFindSessionsCompleteDelegate::CreateUObject(this, &ThisClass::OnFindSessionComplete);
+	JoinSessionCompleteDelegate = FOnJoinSessionCompleteDelegate::CreateUObject(this, &ThisClass::OnJoinSessionComplete);
 }
 
 void AUdemy_MP_MenuCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputComponent)
 {
-	// Set up action bindings
-	if (UEnhancedInputComponent* EnhancedInputComponent = Cast<UEnhancedInputComponent>(PlayerInputComponent)) {
-		
-		// Jumping
+	if (UEnhancedInputComponent* EnhancedInputComponent = Cast<UEnhancedInputComponent>(PlayerInputComponent)) 
+	{
 		EnhancedInputComponent->BindAction(JumpAction, ETriggerEvent::Started, this, &ACharacter::Jump);
 		EnhancedInputComponent->BindAction(JumpAction, ETriggerEvent::Completed, this, &ACharacter::StopJumping);
-
-		// Moving
 		EnhancedInputComponent->BindAction(MoveAction, ETriggerEvent::Triggered, this, &AUdemy_MP_MenuCharacter::Move);
 		EnhancedInputComponent->BindAction(MouseLookAction, ETriggerEvent::Triggered, this, &AUdemy_MP_MenuCharacter::Look);
-
-		// Looking
 		EnhancedInputComponent->BindAction(LookAction, ETriggerEvent::Triggered, this, &AUdemy_MP_MenuCharacter::Look);
 	}
 	else
@@ -90,19 +87,13 @@ void AUdemy_MP_MenuCharacter::SetupPlayerInputComponent(UInputComponent* PlayerI
 
 void AUdemy_MP_MenuCharacter::Move(const FInputActionValue& Value)
 {
-	// input is a Vector2D
 	FVector2D MovementVector = Value.Get<FVector2D>();
-
-	// route the input
 	DoMove(MovementVector.X, MovementVector.Y);
 }
 
 void AUdemy_MP_MenuCharacter::Look(const FInputActionValue& Value)
 {
-	// input is a Vector2D
 	FVector2D LookAxisVector = Value.Get<FVector2D>();
-
-	// route the input
 	DoLook(LookAxisVector.X, LookAxisVector.Y);
 }
 
@@ -110,17 +101,10 @@ void AUdemy_MP_MenuCharacter::DoMove(float Right, float Forward)
 {
 	if (GetController() != nullptr)
 	{
-		// find out which way is forward
 		const FRotator Rotation = GetController()->GetControlRotation();
 		const FRotator YawRotation(0, Rotation.Yaw, 0);
-
-		// get forward vector
 		const FVector ForwardDirection = FRotationMatrix(YawRotation).GetUnitAxis(EAxis::X);
-
-		// get right vector 
 		const FVector RightDirection = FRotationMatrix(YawRotation).GetUnitAxis(EAxis::Y);
-
-		// add movement 
 		AddMovementInput(ForwardDirection, Forward);
 		AddMovementInput(RightDirection, Right);
 	}
@@ -130,7 +114,6 @@ void AUdemy_MP_MenuCharacter::DoLook(float Yaw, float Pitch)
 {
 	if (GetController() != nullptr)
 	{
-		// add yaw and pitch input to controller
 		AddControllerYawInput(Yaw);
 		AddControllerPitchInput(Pitch);
 	}
@@ -138,17 +121,15 @@ void AUdemy_MP_MenuCharacter::DoLook(float Yaw, float Pitch)
 
 void AUdemy_MP_MenuCharacter::DoJumpStart()
 {
-	// signal the character to jump
 	Jump();
 }
 
 void AUdemy_MP_MenuCharacter::DoJumpEnd()
 {
-	// signal the character to stop jumping
 	StopJumping();
 }
 
-// Called when pressing 1 key
+// Called when pressing 1 key for testing purposes 
 void AUdemy_MP_MenuCharacter::CreateGameSession()
 {
 	if (!OnlineSessionInterface.IsValid()) // being a smart ptr, we use the IsValid function
@@ -165,7 +146,6 @@ void AUdemy_MP_MenuCharacter::CreateGameSession()
 	// Add our delegate to session interface's delegate list
 	OnlineSessionInterface->AddOnCreateSessionCompleteDelegate_Handle(CreateSessionCompleteDelegate);
 
-
 	TSharedPtr<FOnlineSessionSettings> sessionSettings = MakeShareable(new FOnlineSessionSettings());
 	sessionSettings->bIsLANMatch = false;
 	sessionSettings->NumPublicConnections = 4;
@@ -174,6 +154,7 @@ void AUdemy_MP_MenuCharacter::CreateGameSession()
 	sessionSettings->bShouldAdvertise = true;
 	sessionSettings->bUsesPresence = true;
 	sessionSettings->bUseLobbiesIfAvailable = true;
+	sessionSettings->Set(FName("MatchType"), FString("FreeForAll"), EOnlineDataAdvertisementType::ViaOnlineServiceAndPing);
 	
 	const ULocalPlayer* localPlayer = GetWorld()->GetFirstLocalPlayerFromController();
 	if (!localPlayer || !localPlayer->GetPreferredUniqueNetId().IsValid())
@@ -183,6 +164,31 @@ void AUdemy_MP_MenuCharacter::CreateGameSession()
 	}
 	
 	OnlineSessionInterface->CreateSession(*localPlayer->GetPreferredUniqueNetId(), NAME_GameSession, *sessionSettings);
+}
+
+// Called by pressing the 2 key for testing purposes
+void AUdemy_MP_MenuCharacter::JoinGameSession()
+{
+	if (!OnlineSessionInterface.IsValid())
+	{
+		return;
+	}
+	
+	OnlineSessionInterface->AddOnFindSessionsCompleteDelegate_Handle(FindSessionsCompleteDelegate);
+
+	SessionSearch = MakeShareable(new FOnlineSessionSearch());
+	SessionSearch->MaxSearchResults = 10000; // We hard code this value to be high bc/ we are currently using Steams example session ID, 480. (So we will find many)
+	SessionSearch->bIsLanQuery = false;
+	SessionSearch->QuerySettings.Set(SEARCH_LOBBIES, true, EOnlineComparisonOp::Equals);
+
+	const ULocalPlayer* localPlayer = GetWorld()->GetFirstLocalPlayerFromController();
+	if (!localPlayer || !localPlayer->GetPreferredUniqueNetId().IsValid())
+	{
+		UE_LOG(LogTemp, Warning, TEXT("No valid LocalPlayer/UniqueNetId for JoinGameSession"));
+		return;
+	}
+
+	OnlineSessionInterface->FindSessions(*localPlayer->GetPreferredUniqueNetId(), SessionSearch.ToSharedRef());
 }
 
 void AUdemy_MP_MenuCharacter::OnCreateSessionComplete(FName SessionName, bool bWasSuccessful)
@@ -196,6 +202,14 @@ void AUdemy_MP_MenuCharacter::OnCreateSessionComplete(FName SessionName, bool bW
 				FColor::Blue,
 				FString::Printf(TEXT("Created Session: %s"), *SessionName.ToString()));
 		}
+
+		UWorld* world = GetWorld();
+		if (world)
+		{
+			world->ServerTravel(FString("/Game/ThirdPerson/Lobby?listen")); // ?listen marks to join this map as a listen server
+
+		}
+
 	}
 	else
 	{
@@ -205,6 +219,87 @@ void AUdemy_MP_MenuCharacter::OnCreateSessionComplete(FName SessionName, bool bW
 				15.f,
 				FColor::Red,
 				FString(TEXT("Failed to create session!")));
+		}
+	}
+}
+
+void AUdemy_MP_MenuCharacter::OnFindSessionComplete(bool bWasSuccessful)
+{
+	for (auto Result : SessionSearch->SearchResults)
+	{
+		FString id = Result.GetSessionIdStr();
+		FString user = Result.Session.OwningUserName;
+		FString matchType;
+
+		if (!OnlineSessionInterface.IsValid())
+		{
+			return;
+		}
+
+		Result.Session.SessionSettings.Get(FName("MatchType"), matchType);
+		if (GEngine)
+		{
+			GEngine->AddOnScreenDebugMessage(
+				-1,
+				15.f,
+				FColor::Cyan,
+				FString::Printf(TEXT("Id: %s, User: %s"), *id, *user)
+			);
+			
+			if (matchType == FString("FreeForAll"))
+			{
+				GEngine->AddOnScreenDebugMessage(
+					-1,
+					15.f,
+					FColor::Cyan,
+					FString::Printf(TEXT("Joining Match Type: %s"), *matchType)
+				);
+
+				// Delegate will now be called after join session completion
+				OnlineSessionInterface->AddOnJoinSessionCompleteDelegate_Handle(JoinSessionCompleteDelegate);
+				
+				const ULocalPlayer* localPlayer = GetWorld()->GetFirstLocalPlayerFromController();
+				if (!localPlayer || !localPlayer->GetPreferredUniqueNetId().IsValid())
+				{
+					UE_LOG(LogTemp, Warning, TEXT("No valid LocalPlayer/UniqueNetId for JoinGameSession"));
+					return;
+				}
+
+				OnlineSessionInterface->JoinSession(*localPlayer->GetPreferredUniqueNetId(), NAME_GameSession, Result);
+				return;
+			}
+		}
+		
+	}
+}
+
+void AUdemy_MP_MenuCharacter::OnJoinSessionComplete(FName SessionName, EOnJoinSessionCompleteResult::Type Result)
+{
+	if (!OnlineSessionInterface.IsValid())
+	{
+		return;
+	}
+
+	if (Result != EOnJoinSessionCompleteResult::Success)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("JoinSession failed: %d"), (int32)Result);
+		return;
+	}
+
+	FString address;
+	if (OnlineSessionInterface->GetResolvedConnectString(NAME_GameSession, address) && GEngine)
+	{
+		GEngine->AddOnScreenDebugMessage(
+			-1,
+			15.f,
+			FColor::Yellow,
+			FString::Printf(TEXT("Connect String: %s"), *address)
+		);
+
+		APlayerController* PlayerController = GetGameInstance()->GetFirstLocalPlayerController();
+		if (PlayerController)
+		{
+			PlayerController->ClientTravel(address, ETravelType::TRAVEL_Absolute);
 		}
 	}
 }
