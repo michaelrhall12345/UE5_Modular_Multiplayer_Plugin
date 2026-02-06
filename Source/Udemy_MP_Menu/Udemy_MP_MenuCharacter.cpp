@@ -57,10 +57,10 @@ AUdemy_MP_MenuCharacter::AUdemy_MP_MenuCharacter()
 	{
 		OnlineSessionInterface = OnlineSubsystem->GetSessionInterface();
 
-		if (GEngine)
+		/*if (GEngine)
 		{
 			GEngine->AddOnScreenDebugMessage(-1, 15.f, FColor::Blue, FString::Printf(TEXT("Found Subsystem %s"), *OnlineSubsystem->GetSubsystemName().ToString()));
-		}
+		}*/
 	}
 
 	// Create delegates by using the CreateUObject function. These functions constructs a new delegate and takes the address of our callback function, binding it.
