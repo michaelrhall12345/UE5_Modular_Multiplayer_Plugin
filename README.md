@@ -26,8 +26,9 @@ Working and actively improved. API may change as the plugin evolves.
 - Harden subsystem integration
 - LAN connection availabilty
 - Steam region distance bias removal
-- TAB hold functionality to see connected players listed with ping & names.
+- TAB hold functionality to see connected players listed with ping & names
 - Macro toggle for disabling debug code
+- Separate repo for plugin once polished
 
 ## License
 See `LICENSE`.
